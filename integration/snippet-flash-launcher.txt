@@ -1,0 +1,45 @@
+// ==== src/ops/launcher/gqa_attention_volta_flash.cu : declarations (lines 38-48) ====
+namespace ninfer::ops::detail {
+
+// Experimental sm_70 D256 Split-D route (gqa_attention_volta_splitd.cu). Selected with
+// NINFER_VOLTA_SPLITD=1; the block call returns false when the kernel is unusable for
+// this call, in which case the caller stays on the vendored llama.cpp kernel below.
+bool volta_splitd_requested();
+
+template <typename Geometry>
+bool volta_splitd_block(const void* q_bf16, const void* k_f16, const void* v_f16, int rows,
+                        int kv_len, int kv_offset, const void* positions, int position_begin,
+                        float scale, bool int8_q, void* out_bf16, cudaStream_t stream);
+
+// ==== src/ops/launcher/gqa_attention_volta_flash.cu : call site (lines 630-660) ====
+        const std::int64_t q_count = static_cast<std::int64_t>(tokens) * kQHeads * kHeadDim;
+
+        // Split-D route: the 1CatAI kernel masks causally from (kv_len, kv_offset) itself,
+        // so it needs neither this route's mask nor its Q/out f32 staging conversions.
+        if (volta_splitd_requested()) {
+            const auto* q_row = static_cast<const __nv_bfloat16*>(q.data) +
+                                static_cast<std::int64_t>(begin) * kQHeads * kHeadDim;
+            auto* out_row = static_cast<__nv_bfloat16*>(out.data) +
+                            static_cast<std::int64_t>(begin) * kQHeads * kHeadDim;
+            if (volta_splitd_block<Geometry>(
+                    q_row, k_gathered.data, v_gathered.data, tokens, n_kv, base + begin,
+                    position_ptr, begin, scale, cache.storage == KvCacheStorage::Int8Group64,
+                    out_row, stream)) {
+                continue;
+            }
+        }
+
+        constexpr int kConvertThreads = 256;
+        const int convert_blocks =
+            static_cast<int>((q_count + kConvertThreads - 1) / kConvertThreads);
+
+        const auto* q_begin = static_cast<const __nv_bfloat16*>(q.data) +
+                              static_cast<std::int64_t>(begin) * kQHeads * kHeadDim;
+        VoltaFlashTimer t_convert_q("convert_q", stream);
+        if (cache.storage == KvCacheStorage::Int8Group64) {
+            const int rows = tokens * kQHeads;
+            volta_flash_convert_q_i8_kernel<<<(rows + 7) / 8, 256, 0, stream>>>(
+                q_begin, static_cast<float*>(q_f32.data), rows);
+        } else {
+            volta_flash_convert_q_kernel<<<convert_blocks, kConvertThreads, 0, stream>>>(
+                q_begin, static_cast<float*>(q_f32.data), q_count);
