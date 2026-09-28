@@ -1,0 +1,26 @@
+{
+  "label": "new196k",
+  "started": "2026-09-28 17:43:48",
+  "long_tokens": 230000,
+  "chars": 920000,
+  "salt": "probe-new196k",
+  "result": {
+    "label": "long-cold-greedy",
+    "wall_s": 338.876,
+    "cache_n": 0,
+    "prompt_n": 196320,
+    "prompt_ms": 330441.418416,
+    "prompt_tok_s": 594.1143847556315,
+    "predicted_n": 256,
+    "predicted_ms": 8340.376629,
+    "decode_tok_s": 30.57415885912746,
+    "draft_n": 307,
+    "draft_accepted": 167,
+    "accept_rate": 0.544,
+    "emit_per_draft": 0.834,
+    "completion_tokens": 256,
+    "reasoning_tokens": 256
+  },
+  "wall_s": 338.9,
+  "finished": "2026-09-28 17:49:27"
+}
