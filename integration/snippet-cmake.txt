@@ -1,0 +1,27 @@
+# ==== src/CMakeLists.txt : source list (lines 340-350) ====
+    ops/linear_swiglu/fp8/fp8_linear_swiglu_qpn_split.cu
+    ops/linear_swiglu/fp8/fp8_linear_swiglu_cutlass_sm70.cu
+    ops/linear_swiglu/nvfp4/nvfp4_linear_swiglu_volta_qpn.cu
+    ops/linear_swiglu/nvfp4/nvfp4_linear_swiglu_qpn_split.cu
+    ops/linear_swiglu/q4/q4_linear_swiglu_cutlass_sm70.cu
+    ops/launcher/gqa_attention_volta_flash.cu
+    ops/launcher/gqa_attention_volta_splitd.cu)
+  set_source_files_properties(
+    ops/launcher/gqa_attention_volta_flash.cu
+    TARGET_DIRECTORY ninfer_ops
+    PROPERTIES
+
+# ==== src/CMakeLists.txt : scoped include dirs (lines 352-364) ====
+      COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda;-diag-suppress=940>")
+  # The Split-D route is the only translation unit that sees the vendored 1CatAI D256
+  # kernel; its cute/cutlass/flash closure resolves its own internal includes from the
+  # sm70-vendor directory, so both paths are scoped here rather than globally.
+  set_source_files_properties(
+    ops/launcher/gqa_attention_volta_splitd.cu
+    TARGET_DIRECTORY ninfer_ops
+    PROPERTIES
+      INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/third_party/llama_cpp_sm70_d256;${PROJECT_SOURCE_DIR}/third_party/llama_cpp_sm70_d256/sm70-vendor"
+      COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda;-diag-suppress=940>")
+  # --- DFlash2 port: these sm_80-only translation units (cp.async / bf16 mma /
+  #     __reduce_*_sync) have no Volta kernel yet. Exclude them from the sm_70 build;
+  #     the op wrappers throw std::logic_error under NINFER_VOLTA_BUILD until P2+.
