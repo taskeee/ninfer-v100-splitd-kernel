@@ -42,7 +42,7 @@
 | **宿主推理引擎** | [`Neroued/ninfer`](https://github.com/Neroued/ninfer)（★2,485） | **Apache-2.0** | 未附带源码；只提供接线说明 |
 | **V100 / sm_70 移植版** | 本机现役版本，**未公开**（见下"关于移植版"） | Apache-2.0（承自 NInfer） | 只提供接线片段 |
 | **接线代码**<br>`integration/gqa_attention_volta_splitd.cu`（18,072 B） | AI 在本机上写的，**本仓库首次公开** | Apache-2.0 | 完整提供 |
-| **依赖闭包**<br>`vendor/`（162 文件 / 14 MB） | NVIDIA **CUTLASS/cute**（BSD-3-Clause）+ **flash-attention**（BSD-3-Clause） | 见 `licenses/` | 为可编译而附带 |
+| **依赖闭包**（**本仓库不附带**） | NVIDIA **CUTLASS/cute**（152 头文件）+ **flash-attention**（8 头文件），上游 `ggml/src/ggml-cuda/sm70-vendor` | Apache-2.0 / BSD-3-Clause（见 `licenses/`） | 见"接线方法 ②"的拷贝命令 |
 
 **关于"V100 移植版"**：本机的 NInfer 是**已加 sm_70/Volta 支持的移植版本**（其 `CMakeLists.txt` 开头的注释写明
 *"Upstream NInfer is compiled only for sm_120a. This port adds sm_70 (Volta / Tesla V100) as a peer compile-time target."*）。
@@ -97,7 +97,22 @@
 补齐到 64 的倍数、调 Split-D 内核、输出 `f32→bf16` 回写；暂存用一次 `cudaMalloc`（约 12.6 + 25.2 MiB）。
 
 **② 把内核与依赖放进树里**：`third_party/llama_cpp_sm70_d256/`
-= 内核 `fattn-sm70-d256-kernel.cuh` + 依赖闭包 `sm70-vendor/`（本仓库 `vendor/` 就是它）。
+= 内核 `fattn-sm70-d256-kernel.cuh`（本仓库 `kernel/` 那份）+ 依赖闭包 `sm70-vendor/`。
+
+那份闭包**本仓库不附带**（162 个头文件 / 14 MB，全是别人的东西），但它**上游就有，原样一份**：
+
+```bash
+# 从上游仓库取闭包（NVIDIA CUTLASS/cute 152 个头文件 + flash-attention 8 个）
+git clone --depth 1 https://github.com/fishlikeX/sm70-attn.git /tmp/sm70-attn
+mkdir -p third_party/llama_cpp_sm70_d256
+cp -r /tmp/sm70-attn/ggml/src/ggml-cuda/sm70-vendor third_party/llama_cpp_sm70_d256/
+cp kernel/fattn-sm70-d256-kernel.cuh third_party/llama_cpp_sm70_d256/
+```
+
+来源与许可（上游 `sm70-vendor/README.md` 原文记载）：`cute/` + `cutlass/` 取自
+[NVIDIA/cutlass](https://github.com/NVIDIA/cutlass) commit `62750a2b…`（Apache-2.0）；
+`flash/`（8 个头文件）取自 [zhinianqin/flash-attention-v100](https://github.com/zhinianqin/flash-attention-v100)
+commit `c2eda5e6…`（BSD-3-Clause）。
 
 **③ 在 `src/ops/launcher/gqa_attention_volta_flash.cu` 里加钩子**（本机行号 38–48 声明、630–660 调用）：
 
@@ -208,7 +223,7 @@ this kernel will not help you (see the decode rows below).
 | **Host engine** | [`Neroued/ninfer`](https://github.com/Neroued/ninfer) (★2,485) | **Apache-2.0** | source not bundled; wiring documented |
 | **V100 / sm_70 port** | my local tree, **not publicly available** (see below) | Apache-2.0 (inherited) | snippets only |
 | **Wiring code**<br>`integration/gqa_attention_volta_splitd.cu` (18,072 B) | written on this machine, **first published here** | Apache-2.0 | full source |
-| **Dependency closure**<br>`vendor/` (162 files / 14 MB) | NVIDIA **CUTLASS/cute** + **flash-attention** | BSD-3-Clause (`licenses/`) | bundled so it builds |
+| **Dependency closure** (**not bundled here**) | NVIDIA **CUTLASS/cute** (152 headers) + **flash-attention** (8 headers), upstream `ggml/src/ggml-cuda/sm70-vendor` | Apache-2.0 / BSD-3-Clause (`licenses/`) | copy command in "Wiring ②" |
 
 **About the V100 port**: my NInfer tree is an **sm_70/Volta port** (its `CMakeLists.txt` states
 *"Upstream NInfer is compiled only for sm_120a. This port adds sm_70 (Volta / Tesla V100) as a peer compile-time target."*).
@@ -259,7 +274,20 @@ Exact original snippets: `integration/snippet-flash-launcher.txt`, `integration/
    (same normalized Hadamard as the old path when KV is `int8`), pad to a multiple of 64, call the Split-D
    kernel, write back `f32→bf16`; staging via one `cudaMalloc` (~12.6 + 25.2 MiB).
 2. **Vendor** the kernel and its closure into `third_party/llama_cpp_sm70_d256/`
-   (`fattn-sm70-d256-kernel.cuh` + `sm70-vendor/`, i.e. this repo's `vendor/`).
+   (`fattn-sm70-d256-kernel.cuh` + `sm70-vendor/`). The closure is **not bundled here**
+   (162 third-party headers / 14 MB) but exists verbatim upstream:
+
+```bash
+git clone --depth 1 https://github.com/fishlikeX/sm70-attn.git /tmp/sm70-attn
+mkdir -p third_party/llama_cpp_sm70_d256
+cp -r /tmp/sm70-attn/ggml/src/ggml-cuda/sm70-vendor third_party/llama_cpp_sm70_d256/
+cp kernel/fattn-sm70-d256-kernel.cuh third_party/llama_cpp_sm70_d256/
+```
+
+   Provenance (from the upstream `sm70-vendor/README.md`): `cute/` + `cutlass/` from
+   [NVIDIA/cutlass](https://github.com/NVIDIA/cutlass) commit `62750a2b…` (Apache-2.0);
+   `flash/` (8 headers) from [zhinianqin/flash-attention-v100](https://github.com/zhinianqin/flash-attention-v100)
+   commit `c2eda5e6…` (BSD-3-Clause).
 3. **Hook** `src/ops/launcher/gqa_attention_volta_flash.cu` (lines 38–48 declarations, 630–660 call site here):
    declare `volta_splitd_requested()` / `volta_splitd_block<Geometry>(…)`, and inside the Q-block loop call it
    before the vendored kernel — on success `continue`, on `false` fall back to the old kernel automatically.
