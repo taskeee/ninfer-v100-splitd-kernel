@@ -1,0 +1,46 @@
+{
+  "label": "new85k",
+  "started": "2026-09-28 17:53:57",
+  "long_tokens": 98000,
+  "chars": 392000,
+  "salt": "probe-new85k",
+  "results": [
+    {
+      "label": "long-cold",
+      "wall_s": 104.1,
+      "cache_n": 0,
+      "prompt_n": 83177,
+      "prompt_ms": 98070.395767,
+      "prompt_tok_s": 848.1356616283636,
+      "predicted_n": 256,
+      "predicted_ms": 5985.006105,
+      "decode_tok_s": 42.60647282998887,
+      "draft_n": 311,
+      "draft_accepted": 162,
+      "accept_rate": 0.5209,
+      "emit_per_draft": 0.823,
+      "completion_tokens": 256,
+      "reasoning_tokens": 256,
+      "wall_s_outer": 104.1
+    },
+    {
+      "label": "long-warm-repeat",
+      "wall_s": 6.705,
+      "cache_n": 83172,
+      "prompt_n": 5,
+      "prompt_ms": 172.665341,
+      "prompt_tok_s": 28.9577512837391,
+      "predicted_n": 256,
+      "predicted_ms": 6495.488572,
+      "decode_tok_s": 39.258016879473004,
+      "draft_n": 322,
+      "draft_accepted": 151,
+      "accept_rate": 0.4689,
+      "emit_per_draft": 0.795,
+      "completion_tokens": 256,
+      "reasoning_tokens": 256,
+      "wall_s_outer": 6.7
+    }
+  ],
+  "finished": "2026-09-28 17:55:48"
+}
