@@ -343,3 +343,5 @@ integration/gqa_attention_volta_splitd.cu
 I **cannot read code or English**, so I answer technical questions by having an AI reproduce them.
 When opening an issue, please include: **GPU model and VRAM, CUDA version, prompt depth in tokens,
 decode tok/s, draft acceptance**, and above all the **verbatim error message** (not a paraphrase).
+
+> Companion repository: **[`ninfer-v100-sm70-decode`](https://github.com/taskeee/ninfer-v100-sm70-decode)** - the DECODE side (tpx v2 int8 kernel + Flo5k5 sm70 commits), the context-cache/scheduler settings, and a measured 53-request real agent load run with the raw engine logs.
